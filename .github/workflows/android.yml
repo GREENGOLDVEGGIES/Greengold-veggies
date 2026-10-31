@@ -1,0 +1,50 @@
+name: Build GreenGold Veggies APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Extract Flutter project
+        run: |
+          mkdir extracted
+          for f in *.zip; do
+            if [ -f "$f" ]; then
+              unzip -oq "$f" -d extracted
+            fi
+          done
+          PROJECT=$(find extracted -name pubspec.yaml -print -quit)
+          if [ -z "$PROJECT" ]; then
+            echo "Flutter project not found in ZIP"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> $GITHUB_ENV
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GreenGold-Veggies-APK
+          path: extracted/**/build/app/outputs/flutter-apk/app-release.apk
